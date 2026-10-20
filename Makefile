@@ -32,7 +32,7 @@ fmt: ## Format Terraform files
 	cd terraform && terraform fmt -recursive
 
 load: ## Generate traffic: make load [DURATION=300] [WORKERS=5]
-	./scripts/load.sh $(or $(DURATION),300) $(or $(WORKERS),5)
+	bash scripts/load.sh $(or $(DURATION),300) $(or $(WORKERS),5)
 
 grafana: ## Open Grafana at http://localhost:3000 (user: admin)
 	kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
@@ -65,7 +65,7 @@ chaos-stop: ## Remove all running experiments
 	-kubectl delete -f chaos/ --ignore-not-found
 
 smoke: ## Resilience gate: pod-kill under load must stay >= 85% successful
-	./scripts/smoke.sh
+	bash scripts/smoke.sh
 
 status: ## Show pods and chaos experiments
 	kubectl -n shop get pods -o wide
