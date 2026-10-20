@@ -1,0 +1,58 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: chaos-lab-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: chaos-lab
+      rules:
+        - alert: CheckoutHighErrorRate
+          expr: |
+            (
+              sum(rate(chaoslab_http_requests_total{component="frontend",path="/checkout",status=~"5.."}[1m]))
+              or vector(0)
+            )
+            /
+            sum(rate(chaoslab_http_requests_total{component="frontend",path="/checkout"}[1m]))
+            > 0.05
+          for: 30s
+          labels:
+            severity: critical
+          annotations:
+            summary: "Checkout error rate above 5%"
+            description: "{{ $value | humanizePercentage }} of /checkout requests are failing."
+
+        - alert: CheckoutHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(chaoslab_http_request_duration_seconds_bucket{component="frontend",path="/checkout"}[1m]))
+            ) > 0.5
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            summary: "Checkout p95 latency above 500ms"
+            description: "p95 /checkout latency is {{ $value | humanizeDuration }}."
+
+        - alert: ReplicasUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{namespace="shop"}
+            < kube_deployment_spec_replicas{namespace="shop"}
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.deployment }} is missing replicas"
+            description: "Only {{ $value }} replicas of {{ $labels.deployment }} are available."
+
+        - alert: ServiceDown
+          expr: kube_deployment_status_replicas_available{namespace="shop"} == 0
+          for: 15s
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.deployment }} has zero available replicas"
+            description: "Every pod of {{ $labels.deployment }} is unavailable."

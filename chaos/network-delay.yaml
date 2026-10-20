@@ -1,0 +1,21 @@
+# Experiment 2: add ~800ms of latency to every inventory pod for 3 minutes.
+# Stays under the 2s upstream timeout, so requests succeed but get slow and
+# the CheckoutHighLatency alert should fire.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: delay-inventory
+  namespace: shop
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - shop
+    labelSelectors:
+      app: inventory
+  delay:
+    latency: 800ms
+    jitter: 100ms
+    correlation: "50"
+  duration: 3m

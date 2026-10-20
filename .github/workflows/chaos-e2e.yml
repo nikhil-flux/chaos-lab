@@ -1,0 +1,58 @@
+name: chaos-e2e
+
+# Resilience gate: spin up a throwaway kind cluster, deploy the app, kill a pod
+# under load and fail the build if availability drops or recovery does not happen.
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "k8s/**"
+      - "chaos/**"
+      - "scripts/**"
+      - ".github/workflows/chaos-e2e.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: chaos-ci
+
+      - name: Build and load app image
+        run: |
+          docker build -t chaos-lab-app:local app
+          kind load docker-image chaos-lab-app:local --name chaos-ci
+
+      - name: Install Chaos Mesh
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm install chaos-mesh chaos-mesh/chaos-mesh \
+            --namespace chaos-mesh --create-namespace \
+            --set chaosDaemon.runtime=containerd \
+            --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+            --wait --timeout 5m
+
+      - name: Deploy app
+        run: kubectl apply -k k8s
+
+      - name: Resilience gate (pod-kill under load)
+        run: ./scripts/smoke.sh
+
+      - name: Debug output on failure
+        if: failure()
+        run: |
+          kubectl -n shop get pods -o wide
+          kubectl -n shop describe pods | tail -80
+          kubectl -n shop logs -l app=inventory --tail=50 --prefix || true

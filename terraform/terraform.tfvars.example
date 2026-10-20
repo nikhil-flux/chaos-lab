@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored) and fill in your own values.
+# Alternatively export TF_VAR_slack_webhook_url so nothing touches disk.
+
+cluster_name           = "chaos-lab"
+worker_nodes           = 2
+slack_webhook_url      = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+grafana_admin_password = "change-me"

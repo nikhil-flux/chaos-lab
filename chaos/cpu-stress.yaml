@@ -1,0 +1,19 @@
+# Experiment 4: burn CPU inside one orders pod for 2 minutes. The pod has a
+# 200m CPU limit, so it gets throttled and requests routed to it slow down.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress-orders
+  namespace: shop
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - shop
+    labelSelectors:
+      app: orders
+  stressors:
+    cpu:
+      workers: 2
+      load: 90
+  duration: 2m

@@ -1,0 +1,57 @@
+# Values for the kube-prometheus-stack Helm chart (installed by Terraform).
+# The Slack webhook URL and Grafana admin password are injected by Terraform
+# as sensitive values, so they never appear in this file.
+
+# kind does not expose these control-plane endpoints, so skip their alerts.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 10s
+    evaluationInterval: 15s
+    retention: 2d
+    # Pick up ServiceMonitors / PrometheusRules from any namespace.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+
+grafana:
+  defaultDashboardsTimezone: browser
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: slack
+      group_by: ["alertname"]
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 30m
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname =~ "Watchdog|InfoInhibitor"
+    receivers:
+      - name: "null"
+      - name: slack
+        slack_configs:
+          - channel: "#chaos-alerts"
+            send_resolved: true

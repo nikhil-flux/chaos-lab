@@ -1,0 +1,16 @@
+# Experiment 1: delete one inventory pod. Kubernetes should replace it and
+# the retry in the orders service should hide most (ideally all) errors.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-inventory-pod
+  namespace: shop
+spec:
+  action: pod-kill
+  mode: one
+  gracePeriod: 0
+  selector:
+    namespaces:
+      - shop
+    labelSelectors:
+      app: inventory

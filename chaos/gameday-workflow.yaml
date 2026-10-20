@@ -1,0 +1,89 @@
+# Game day: run every experiment in sequence with recovery gaps in between.
+# Start load first (make load) and keep Grafana open (make grafana).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: game-day
+  namespace: shop
+spec:
+  entry: game-day
+  templates:
+    - name: game-day
+      templateType: Serial
+      deadline: 20m
+      children:
+        - kill-pod
+        - recover-1
+        - slow-inventory
+        - recover-2
+        - inventory-outage
+        - recover-3
+        - cpu-stress
+
+    - name: kill-pod
+      templateType: PodChaos
+      deadline: 30s
+      podChaos:
+        action: pod-kill
+        mode: one
+        gracePeriod: 0
+        selector:
+          namespaces:
+            - shop
+          labelSelectors:
+            app: inventory
+
+    - name: slow-inventory
+      templateType: NetworkChaos
+      deadline: 2m
+      networkChaos:
+        action: delay
+        mode: all
+        selector:
+          namespaces:
+            - shop
+          labelSelectors:
+            app: inventory
+        delay:
+          latency: 800ms
+          jitter: 100ms
+          correlation: "50"
+
+    - name: inventory-outage
+      templateType: PodChaos
+      deadline: 90s
+      podChaos:
+        action: pod-failure
+        mode: all
+        selector:
+          namespaces:
+            - shop
+          labelSelectors:
+            app: inventory
+
+    - name: cpu-stress
+      templateType: StressChaos
+      deadline: 2m
+      stressChaos:
+        mode: one
+        selector:
+          namespaces:
+            - shop
+          labelSelectors:
+            app: orders
+        stressors:
+          cpu:
+            workers: 2
+            load: 90
+
+    - name: recover-1
+      templateType: Suspend
+      deadline: 60s
+
+    - name: recover-2
+      templateType: Suspend
+      deadline: 60s
+
+    - name: recover-3
+      templateType: Suspend
+      deadline: 90s

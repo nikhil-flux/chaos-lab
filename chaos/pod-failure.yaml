@@ -1,0 +1,17 @@
+# Experiment 3: full inventory outage for 90 seconds. Every inventory pod
+# stops serving, so checkout returns 502s. CheckoutHighErrorRate and
+# ReplicasUnavailable should fire, then resolve once the pods come back.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: inventory-outage
+  namespace: shop
+spec:
+  action: pod-failure
+  mode: all
+  duration: 90s
+  selector:
+    namespaces:
+      - shop
+    labelSelectors:
+      app: inventory
